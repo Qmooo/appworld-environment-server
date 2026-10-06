@@ -12,8 +12,6 @@ uv run appworld install                   # unpack the app sources bundled in th
 uv run appworld download data --root <DATA_ROOT>   # creates <DATA_ROOT>/data/ (~290MB)
 ```
 
-`.venv/` and data are not version-controlled.
-
 ## Launch
 
 ```bash
