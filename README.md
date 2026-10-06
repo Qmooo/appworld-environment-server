@@ -18,7 +18,8 @@ uv run appworld download data --root <DATA_ROOT>   # creates <DATA_ROOT>/data/ (
 
 ```bash
 # run from this directory: backends are `uv run appworld serve`, which needs this pyproject
-APPWORLD_ROOT=<DATA_ROOT> nohup uv run python server_pool.py \
+export APPWORLD_ROOT=<DATA_ROOT>          # data root from `appworld download data`
+nohup uv run python server_pool.py \
     --proxy-port 8777 --min 2 --max 4 > pool.log 2>&1 &
 curl -s http://localhost:8777/pool/stats  # clean only when busy is 0
 ```
