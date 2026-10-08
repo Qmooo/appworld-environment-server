@@ -9,7 +9,7 @@ AppWorld proxy + backend server pool. Clients call one URL (default `http://loca
 ```bash
 uv sync                                   # build .venv from uv.lock (Python 3.11)
 uv run appworld install                   # unpack the app sources bundled in the AppWorld package
-uv run appworld download data --root <DATA_ROOT>   # creates <DATA_ROOT>/data/ (~290MB)
+uv run appworld download data --root <DATA_ROOT>   # creates <DATA_ROOT>/data/ (~190MB)
 ```
 
 ## Launch
