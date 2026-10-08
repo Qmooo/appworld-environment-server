@@ -9,17 +9,16 @@ AppWorld proxy + backend server pool. Clients call one URL (default `http://loca
 ```bash
 uv sync                                   # build .venv from uv.lock (Python 3.11)
 uv run appworld install                   # unpack the app sources bundled in the AppWorld package
-uv run appworld download data --root ~/appworld_data   # creates ~/appworld_data/data/ (~190MB)
+uv run appworld download data --root <DATA_ROOT>   # creates <DATA_ROOT>/data/ (~190MB)
 ```
 
-`~/appworld_data` is the default data root used throughout; any directory works if you use the same
-one for `APPWORLD_ROOT` below.
+`<DATA_ROOT>` is any directory you choose for the data; we suggest `~/appworld_data`.
 
 ## Launch
 
 ```bash
 # run from this directory: backends are `uv run appworld serve`, which needs this pyproject
-export APPWORLD_ROOT=~/appworld_data     # data root from `appworld download data`
+export APPWORLD_ROOT=<DATA_ROOT>          # same directory as `appworld download data`, e.g. ~/appworld_data
 nohup uv run python server_pool.py \
     --proxy-port 8777 --min 2 --max 4 > pool.log 2>&1 &
 curl -s http://localhost:8777/pool/stats  # clean only when busy is 0
