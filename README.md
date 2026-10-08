@@ -16,13 +16,20 @@ uv run appworld download data --root <DATA_ROOT>   # creates <DATA_ROOT>/data/ (
 
 ## Launch
 
+Run it in a terminal of its own and leave that terminal open:
+
 ```bash
 # run from this directory: backends are `uv run appworld serve`, which needs this pyproject
 export APPWORLD_ROOT=<DATA_ROOT>          # same directory as `appworld download data`, e.g. ~/appworld_data
-nohup uv run python server_pool.py \
-    --proxy-port 8777 --min 2 --max 4 > pool.log 2>&1 &
-curl -s http://localhost:8777/pool/stats  # clean only when busy is 0
+uv run python server_pool.py --proxy-port 8777 --min 2 --max 4
 ```
+
+It is ready when it prints `AppWorld server ready at http://localhost:8777`. If it cannot start (no data under
+`APPWORLD_ROOT`, port already in use, a backend that crashes), it prints the reason and exits. Ctrl+C stops it.
+`curl -s http://localhost:8777/pool/stats` shows the pool; it is clean only when `busy` is 0.
+
+To run it in the background instead, redirect to a file and watch that file for the same lines:
+`nohup uv run python server_pool.py --proxy-port 8777 --min 2 --max 4 > pool.log 2>&1 &`, then `tail -f pool.log`.
 
 - `APPWORLD_ROOT` is required: `appworld serve environment` doesn't read it; the pool reads it and passes
   it down via `--root`. Unset falls back to `.`, where no data is found.

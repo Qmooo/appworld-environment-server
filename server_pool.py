@@ -18,8 +18,10 @@ import argparse
 import json
 import logging
 import os
+import re
 import socket
 import subprocess
+import sys
 import threading
 import time
 from collections import deque
@@ -43,15 +45,38 @@ APPWORLD_ROOT = os.environ.get("APPWORLD_ROOT", ".")
 # Backend server management
 # ---------------------------------------------------------------------------
 
-def _wait_for_port(port: int, timeout: float = 30.0) -> bool:
+def _wait_for_port(port: int, proc: subprocess.Popen, timeout: float = 30.0) -> bool:
     deadline = time.time() + timeout
     while time.time() < deadline:
+        if proc.poll() is not None:
+            return False
         try:
             with socket.create_connection(("127.0.0.1", port), timeout=1):
                 return True
         except OSError:
             time.sleep(0.3)
     return False
+
+
+def _tail(path: str, lines: int = 8) -> str:
+    """Last lines of a backend log, without the ANSI colours rich adds."""
+    with open(path, errors="replace") as f:
+        text = re.sub(r"\x1b\[[0-9;]*m", "", f.read())
+    return "\n".join("    " + line for line in text.strip().splitlines()[-lines:])
+
+
+def _check_startup(proxy_port: int) -> str | None:
+    """Catch the common setup mistakes before spending time on backends."""
+    data_dir = os.path.join(os.path.expanduser(APPWORLD_ROOT), "data")
+    if not os.path.isdir(data_dir):
+        return (f"AppWorld data not found at {os.path.abspath(data_dir)}.\n"
+                f"Download it with `uv run appworld download data --root <DATA_ROOT>` "
+                f"and start the pool with APPWORLD_ROOT=<DATA_ROOT>.")
+    with socket.socket() as sock:
+        if sock.connect_ex(("127.0.0.1", proxy_port)) == 0:
+            return (f"Port {proxy_port} is already in use; another pool may be running. "
+                    f"Check with `curl -s http://localhost:{proxy_port}/pool/stats`.")
+    return None
 
 
 class ManagedServer:
@@ -75,8 +100,13 @@ class ManagedServer:
             stdout=self._log,
             stderr=subprocess.STDOUT,
         )
-        if not _wait_for_port(self.port):
-            raise RuntimeError(f"Backend port {self.port} did not come up in time")
+        if not _wait_for_port(self.port, self._proc):
+            reason = "exited" if self._proc.poll() is not None else "did not come up in time"
+            self.stop()
+            raise RuntimeError(
+                f"Backend port {self.port} {reason}. Last lines of {log_path}:\n"
+                + _tail(log_path)
+            )
         log.info(f"Backend port {self.port} ready")
 
     def stop(self):
@@ -449,7 +479,17 @@ def main():
         scale_down_idle_seconds=args.scale_down,
         lease_ttl_seconds=args.lease_ttl,
     )
-    pool.start()
+    problem = _check_startup(args.proxy_port)
+    if problem:
+        log.error(problem)
+        sys.exit(1)
+    try:
+        pool.start()
+    except RuntimeError as e:
+        log.error(e)
+        pool.stop()
+        sys.exit(1)
+    log.info(f"AppWorld server ready at http://localhost:{args.proxy_port} (Ctrl+C to stop)")
 
     try:
         uvicorn.run(app, host="0.0.0.0", port=args.proxy_port)
